@@ -27,6 +27,7 @@ import org.apache.dubbo.config.ModuleConfig;
 import org.apache.dubbo.config.MonitorConfig;
 import org.apache.dubbo.config.ReferenceConfig;
 import org.apache.dubbo.config.RegistryConfig;
+import org.apache.dubbo.config.MetricsConfig;
 import org.apache.dubbo.config.annotation.Reference;
 import org.apache.dubbo.config.spring.extension.SpringExtensionFactory;
 import org.apache.dubbo.config.support.Parameter;
@@ -216,11 +217,23 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
             }
         }
 
-        Boolean b = isInit();
-        if (b == null && getConsumer() != null) {
-            b = getConsumer().isInit();
+        if (getMetrics() == null) {
+            Map<String, MetricsConfig> metricsConfigMap = applicationContext == null ? null : BeanFactoryUtils.beansOfTypeIncludingAncestors(applicationContext, MetricsConfig.class, false, false);
+            if (metricsConfigMap != null && metricsConfigMap.size() > 0) {
+                MetricsConfig metricsConfig = null;
+                for (MetricsConfig config : metricsConfigMap.values()) {
+                    if (metricsConfig != null) {
+                        throw new IllegalStateException("Duplicate metrics configs: " + metricsConfig + " and " + config);
+                    }
+                    metricsConfig = config;
+                }
+                if (metricsConfig != null) {
+                    setMetrics(metricsConfig);
+                }
+            }
         }
-        if (b != null && b) {
+
+        if (shouldInit()) {
             getObject();
         }
     }

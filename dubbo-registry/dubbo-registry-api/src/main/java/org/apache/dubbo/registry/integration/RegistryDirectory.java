@@ -18,6 +18,7 @@ package org.apache.dubbo.registry.integration;
 
 import org.apache.dubbo.common.Constants;
 import org.apache.dubbo.common.URL;
+import org.apache.dubbo.common.URLBuilder;
 import org.apache.dubbo.common.Version;
 import org.apache.dubbo.common.extension.ExtensionLoader;
 import org.apache.dubbo.common.logger.Logger;
@@ -74,9 +75,9 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
 
     private static final Logger logger = LoggerFactory.getLogger(RegistryDirectory.class);
 
-    private static final Cluster cluster = ExtensionLoader.getExtensionLoader(Cluster.class).getAdaptiveExtension();
+    private static final Cluster CLUSTER = ExtensionLoader.getExtensionLoader(Cluster.class).getAdaptiveExtension();
 
-    private static final RouterFactory routerFactory = ExtensionLoader.getExtensionLoader(RouterFactory.class)
+    private static final RouterFactory ROUTER_FACTORY = ExtensionLoader.getExtensionLoader(RouterFactory.class)
             .getAdaptiveExtension();
 
     private final String serviceKey; // Initialization at construction time, assertion not null
@@ -107,7 +108,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
     // Set<invokerUrls> cache invokeUrls to invokers mapping.
     private volatile Set<URL> cachedInvokerUrls; // The initial value is null and the midway may be assigned to null, please use the local variable reference
 
-    private static final ConsumerConfigurationListener consumerConfigurationListener = new ConsumerConfigurationListener();
+    private static final ConsumerConfigurationListener CONSUMER_CONFIGURATION_LISTENER = new ConsumerConfigurationListener();
     private ReferenceConfigurationListener serviceConfigurationListener;
 
 
@@ -133,10 +134,12 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
         if (StringUtils.isNotEmpty(isDefault)) {
             queryMap.put(Constants.REGISTRY_KEY + "." + Constants.DEFAULT_KEY, isDefault);
         }
-        return url.setPath(url.getServiceInterface())
+        return URLBuilder.from(url)
+                .setPath(url.getServiceInterface())
                 .clearParameters()
                 .addParameters(queryMap)
-                .removeParameter(Constants.MONITOR_KEY);
+                .removeParameter(Constants.MONITOR_KEY)
+                .build();
     }
 
     public void setProtocol(Protocol protocol) {
@@ -149,7 +152,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
 
     public void subscribe(URL url) {
         setConsumerUrl(url);
-        consumerConfigurationListener.addNotifyListener(this);
+        CONSUMER_CONFIGURATION_LISTENER.addNotifyListener(this);
         serviceConfigurationListener = new ReferenceConfigurationListener(this, url);
         registry.subscribe(url, this);
     }
@@ -175,7 +178,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
                 registry.unsubscribe(getConsumerUrl(), this);
             }
             DynamicConfiguration.getDynamicConfiguration()
-                    .removeListener(ApplicationModel.getApplication(), consumerConfigurationListener);
+                    .removeListener(ApplicationModel.getApplication(), CONSUMER_CONFIGURATION_LISTENER);
         } catch (Throwable t) {
             logger.warn("unexpected error when unsubscribe service " + serviceKey + "from registry" + registry.getUrl(), t);
         }
@@ -305,7 +308,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
             for (List<Invoker<T>> groupList : groupMap.values()) {
                 StaticDirectory<T> staticDirectory = new StaticDirectory<>(groupList);
                 staticDirectory.buildRouterChain();
-                mergedInvokers.add(cluster.join(staticDirectory));
+                mergedInvokers.add(CLUSTER.join(staticDirectory));
             }
         } else {
             mergedInvokers = invokers;
@@ -333,7 +336,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
                 url = url.setProtocol(routerType);
             }
             try {
-                Router router = routerFactory.getRouter(url);
+                Router router = ROUTER_FACTORY.getRouter(url);
                 if (!routers.contains(router)) {
                     routers.add(router);
                 }
@@ -458,7 +461,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
         providerUrl = overrideWithConfigurators(this.configurators, providerUrl);
 
         // override url with configurator from configurator from "app-name.configurators"
-        providerUrl = overrideWithConfigurators(consumerConfigurationListener.getConfigurators(), providerUrl);
+        providerUrl = overrideWithConfigurators(CONSUMER_CONFIGURATION_LISTENER.getConfigurators(), providerUrl);
 
         // override url with configurator from configurators from "service-name.configurators"
         if (serviceConfigurationListener != null) {
@@ -652,7 +655,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
         this.overrideDirectoryUrl = directoryUrl;
         List<Configurator> localConfigurators = this.configurators; // local reference
         doOverrideUrl(localConfigurators);
-        List<Configurator> localAppDynamicConfigurators = consumerConfigurationListener.getConfigurators(); // local reference
+        List<Configurator> localAppDynamicConfigurators = CONSUMER_CONFIGURATION_LISTENER.getConfigurators(); // local reference
         doOverrideUrl(localAppDynamicConfigurators);
         if (serviceConfigurationListener != null) {
             List<Configurator> localDynamicConfigurators = serviceConfigurationListener.getConfigurators(); // local reference
