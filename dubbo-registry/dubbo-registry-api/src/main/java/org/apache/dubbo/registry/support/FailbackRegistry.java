@@ -16,9 +16,7 @@
  */
 package org.apache.dubbo.registry.support;
 
-import org.apache.dubbo.common.Constants;
 import org.apache.dubbo.common.URL;
-import org.apache.dubbo.common.constants.RemotingConstants;
 import org.apache.dubbo.common.timer.HashedWheelTimer;
 import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.common.utils.NamedThreadFactory;
@@ -28,6 +26,7 @@ import org.apache.dubbo.registry.retry.FailedRegisteredTask;
 import org.apache.dubbo.registry.retry.FailedSubscribedTask;
 import org.apache.dubbo.registry.retry.FailedUnregisteredTask;
 import org.apache.dubbo.registry.retry.FailedUnsubscribedTask;
+import org.apache.dubbo.remoting.Constants;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -37,6 +36,11 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+
+import static org.apache.dubbo.common.constants.CommonConstants.FILE_KEY;
+import static org.apache.dubbo.common.constants.RegistryConstants.CONSUMER_PROTOCOL;
+import static org.apache.dubbo.common.constants.RegistryConstants.DEFAULT_REGISTRY_RETRY_PERIOD;
+import static org.apache.dubbo.common.constants.RegistryConstants.REGISTRY_RETRY_PERIOD_KEY;
 
 /**
  * FailbackRegistry. (SPI, Prototype, ThreadSafe)
@@ -65,7 +69,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
 
     public FailbackRegistry(URL url) {
         super(url);
-        this.retryPeriod = url.getParameter(Constants.REGISTRY_RETRY_PERIOD_KEY, Constants.DEFAULT_REGISTRY_RETRY_PERIOD);
+        this.retryPeriod = url.getParameter(REGISTRY_RETRY_PERIOD_KEY, DEFAULT_REGISTRY_RETRY_PERIOD);
 
         // since the retry task will not be very much. 128 ticks is enough.
         retryTimer = new HashedWheelTimer(new NamedThreadFactory("DubboRegistryRetryTimer", true), retryPeriod, TimeUnit.MILLISECONDS, 128);
@@ -202,23 +206,23 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         }
     }
 
-    public ConcurrentMap<URL, FailedRegisteredTask> getFailedRegistered() {
+    ConcurrentMap<URL, FailedRegisteredTask> getFailedRegistered() {
         return failedRegistered;
     }
 
-    public ConcurrentMap<URL, FailedUnregisteredTask> getFailedUnregistered() {
+    ConcurrentMap<URL, FailedUnregisteredTask> getFailedUnregistered() {
         return failedUnregistered;
     }
 
-    public ConcurrentMap<Holder, FailedSubscribedTask> getFailedSubscribed() {
+    ConcurrentMap<Holder, FailedSubscribedTask> getFailedSubscribed() {
         return failedSubscribed;
     }
 
-    public ConcurrentMap<Holder, FailedUnsubscribedTask> getFailedUnsubscribed() {
+    ConcurrentMap<Holder, FailedUnsubscribedTask> getFailedUnsubscribed() {
         return failedUnsubscribed;
     }
 
-    public ConcurrentMap<Holder, FailedNotifiedTask> getFailedNotified() {
+    ConcurrentMap<Holder, FailedNotifiedTask> getFailedNotified() {
         return failedNotified;
     }
 
@@ -234,9 +238,9 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             Throwable t = e;
 
             // If the startup detection is opened, the Exception is thrown directly.
-            boolean check = getUrl().getParameter(RemotingConstants.CHECK_KEY, true)
-                    && url.getParameter(RemotingConstants.CHECK_KEY, true)
-                    && !Constants.CONSUMER_PROTOCOL.equals(url.getProtocol());
+            boolean check = getUrl().getParameter(Constants.CHECK_KEY, true)
+                    && url.getParameter(Constants.CHECK_KEY, true)
+                    && !CONSUMER_PROTOCOL.equals(url.getProtocol());
             boolean skipFailback = t instanceof SkipFailbackWrapperException;
             if (check || skipFailback) {
                 if (skipFailback) {
@@ -264,9 +268,9 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             Throwable t = e;
 
             // If the startup detection is opened, the Exception is thrown directly.
-            boolean check = getUrl().getParameter(RemotingConstants.CHECK_KEY, true)
-                    && url.getParameter(RemotingConstants.CHECK_KEY, true)
-                    && !Constants.CONSUMER_PROTOCOL.equals(url.getProtocol());
+            boolean check = getUrl().getParameter(Constants.CHECK_KEY, true)
+                    && url.getParameter(Constants.CHECK_KEY, true)
+                    && !CONSUMER_PROTOCOL.equals(url.getProtocol());
             boolean skipFailback = t instanceof SkipFailbackWrapperException;
             if (check || skipFailback) {
                 if (skipFailback) {
@@ -295,11 +299,11 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             List<URL> urls = getCacheUrls(url);
             if (CollectionUtils.isNotEmpty(urls)) {
                 notify(url, listener, urls);
-                logger.error("Failed to subscribe " + url + ", Using cached list: " + urls + " from cache file: " + getUrl().getParameter(Constants.FILE_KEY, System.getProperty("user.home") + "/dubbo-registry-" + url.getHost() + ".cache") + ", cause: " + t.getMessage(), t);
+                logger.error("Failed to subscribe " + url + ", Using cached list: " + urls + " from cache file: " + getUrl().getParameter(FILE_KEY, System.getProperty("user.home") + "/dubbo-registry-" + url.getHost() + ".cache") + ", cause: " + t.getMessage(), t);
             } else {
                 // If the startup detection is opened, the Exception is thrown directly.
-                boolean check = getUrl().getParameter(RemotingConstants.CHECK_KEY, true)
-                        && url.getParameter(RemotingConstants.CHECK_KEY, true);
+                boolean check = getUrl().getParameter(Constants.CHECK_KEY, true)
+                        && url.getParameter(Constants.CHECK_KEY, true);
                 boolean skipFailback = t instanceof SkipFailbackWrapperException;
                 if (check || skipFailback) {
                     if (skipFailback) {
@@ -327,8 +331,8 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             Throwable t = e;
 
             // If the startup detection is opened, the Exception is thrown directly.
-            boolean check = getUrl().getParameter(RemotingConstants.CHECK_KEY, true)
-                    && url.getParameter(RemotingConstants.CHECK_KEY, true);
+            boolean check = getUrl().getParameter(Constants.CHECK_KEY, true)
+                    && url.getParameter(Constants.CHECK_KEY, true);
             boolean skipFailback = t instanceof SkipFailbackWrapperException;
             if (check || skipFailback) {
                 if (skipFailback) {
