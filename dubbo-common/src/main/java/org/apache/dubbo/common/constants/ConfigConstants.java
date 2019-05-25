@@ -23,11 +23,6 @@ package org.apache.dubbo.common.constants;
 public interface ConfigConstants {
     String CLUSTER_KEY = "cluster";
 
-    String CONFIG_CLUSTER_KEY = "config.cluster";
-    String CONFIG_NAMESPACE_KEY = "config.namespace";
-    String CONFIG_GROUP_KEY = "config.group";
-    String CONFIG_CHECK_KEY = "config.check";
-
     String USERNAME_KEY = "username";
 
     String PASSWORD_KEY = "password";
@@ -36,45 +31,18 @@ public interface ConfigConstants {
 
     String PORT_KEY = "port";
 
-    String REGISTER_IP_KEY = "register.ip";
-
     String DUBBO_IP_TO_BIND = "DUBBO_IP_TO_BIND";
-
-    String SCOPE_KEY = "scope";
-
-    String SCOPE_LOCAL = "local";
-
-    String SCOPE_REMOTE = "remote";
 
     @Deprecated
     String SHUTDOWN_WAIT_SECONDS_KEY = "dubbo.service.shutdown.wait.seconds";
 
     String SHUTDOWN_WAIT_KEY = "dubbo.service.shutdown.wait";
 
-    /**
-     * The key name for export URL in register center
-     */
-    String EXPORT_KEY = "export";
-
-    /**
-     * The key name for reference URL in register center
-     */
-    String REFER_KEY = "refer";
-
-    /**
-     * To decide whether to make connection when the client is created
-     */
-    String LAZY_CONNECT_KEY = "lazy";
-
     String DUBBO_PROTOCOL = "dubbo";
 
-    String ZOOKEEPER_PROTOCOL = "zookeeper";
+    String QOS_ENABLE = "qos-enable";
 
-    String TELNET = "telnet";
+    String QOS_PORT = "qos-port";
 
-    String QOS_ENABLE = "qos.enable";
-
-    String QOS_PORT = "qos.port";
-
-    String ACCEPT_FOREIGN_IP = "qos.accept.foreign.ip";
+    String ACCEPT_FOREIGN_IP = "qos-accept-foreign-ip";
 }
