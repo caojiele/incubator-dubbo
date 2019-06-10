@@ -18,27 +18,9 @@
 package org.apache.dubbo.common.constants;
 
 /**
- * ConfigConstants
+ * QosConstants
  */
-public interface ConfigConstants {
-    String CLUSTER_KEY = "cluster";
-
-    String USERNAME_KEY = "username";
-
-    String PASSWORD_KEY = "password";
-
-    String HOST_KEY = "host";
-
-    String PORT_KEY = "port";
-
-    String DUBBO_IP_TO_BIND = "DUBBO_IP_TO_BIND";
-
-    @Deprecated
-    String SHUTDOWN_WAIT_SECONDS_KEY = "dubbo.service.shutdown.wait.seconds";
-
-    String SHUTDOWN_WAIT_KEY = "dubbo.service.shutdown.wait";
-
-    String DUBBO_PROTOCOL = "dubbo";
+public interface QosConstants {
 
     String QOS_ENABLE = "qos-enable";
 
