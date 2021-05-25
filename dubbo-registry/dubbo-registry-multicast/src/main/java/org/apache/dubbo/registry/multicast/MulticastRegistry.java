@@ -17,8 +17,6 @@
 package org.apache.dubbo.registry.multicast;
 
 import org.apache.dubbo.common.URL;
-import org.apache.dubbo.common.logger.Logger;
-import org.apache.dubbo.common.logger.LoggerFactory;
 import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.common.utils.ConcurrentHashSet;
 import org.apache.dubbo.common.utils.ExecutorUtil;
@@ -51,14 +49,14 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.dubbo.common.constants.CommonConstants.ANY_VALUE;
 import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_TIMEOUT;
 import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
-import static org.apache.dubbo.registry.Constants.CONSUMER_PROTOCOL;
-import static org.apache.dubbo.registry.Constants.DEFAULT_SESSION_TIMEOUT;
 import static org.apache.dubbo.common.constants.RegistryConstants.DYNAMIC_KEY;
 import static org.apache.dubbo.common.constants.RegistryConstants.EMPTY_PROTOCOL;
 import static org.apache.dubbo.common.constants.RegistryConstants.OVERRIDE_PROTOCOL;
+import static org.apache.dubbo.common.constants.RegistryConstants.ROUTE_PROTOCOL;
+import static org.apache.dubbo.registry.Constants.CONSUMER_PROTOCOL;
+import static org.apache.dubbo.registry.Constants.DEFAULT_SESSION_TIMEOUT;
 import static org.apache.dubbo.registry.Constants.REGISTER;
 import static org.apache.dubbo.registry.Constants.REGISTER_KEY;
-import static org.apache.dubbo.common.constants.RegistryConstants.ROUTE_PROTOCOL;
 import static org.apache.dubbo.registry.Constants.SESSION_TIMEOUT_KEY;
 import static org.apache.dubbo.registry.Constants.SUBSCRIBE;
 import static org.apache.dubbo.registry.Constants.UNREGISTER;
@@ -68,9 +66,6 @@ import static org.apache.dubbo.registry.Constants.UNSUBSCRIBE;
  * MulticastRegistry
  */
 public class MulticastRegistry extends FailbackRegistry {
-
-    // logging output
-    private static final Logger logger = LoggerFactory.getLogger(MulticastRegistry.class);
 
     private static final int DEFAULT_MULTICAST_PORT = 1234;
 
@@ -150,7 +145,7 @@ public class MulticastRegistry extends FailbackRegistry {
     private void checkMulticastAddress(InetAddress multicastAddress) {
         if (!multicastAddress.isMulticastAddress()) {
             String message = "Invalid multicast address " + multicastAddress;
-            if (!(multicastAddress instanceof Inet4Address)) {
+            if (multicastAddress instanceof Inet4Address) {
                 throw new IllegalArgumentException(message + ", " +
                         "ipv4 multicast address scope: 224.0.0.0 - 239.255.255.255.");
             } else {
@@ -263,7 +258,7 @@ public class MulticastRegistry extends FailbackRegistry {
     }
 
     @Override
-    public void doSubscribe(URL url, NotifyListener listener) {
+    public void doSubscribe(URL url, final NotifyListener listener) {
         if (ANY_VALUE.equals(url.getServiceInterface())) {
             admin = true;
         }
@@ -317,14 +312,10 @@ public class MulticastRegistry extends FailbackRegistry {
         for (Map.Entry<URL, Set<NotifyListener>> entry : getSubscribed().entrySet()) {
             URL key = entry.getKey();
             if (UrlUtils.isMatch(key, url)) {
-                Set<URL> urls = received.get(key);
-                if (urls == null) {
-                    received.putIfAbsent(key, new ConcurrentHashSet<URL>());
-                    urls = received.get(key);
-                }
+                Set<URL> urls = received.computeIfAbsent(key, k -> new ConcurrentHashSet<>());
                 urls.add(url);
                 List<URL> list = toList(urls);
-                for (NotifyListener listener : entry.getValue()) {
+                for (final NotifyListener listener : entry.getValue()) {
                     notify(key, listener, list);
                     synchronized (listener) {
                         listener.notify();
@@ -342,7 +333,7 @@ public class MulticastRegistry extends FailbackRegistry {
                 if (urls != null) {
                     urls.remove(url);
                 }
-                if (urls == null || urls.isEmpty()) {
+                if (CollectionUtils.isEmpty(urls)) {
                     if (urls == null) {
                         urls = new ConcurrentHashSet<URL>();
                     }
@@ -365,9 +356,7 @@ public class MulticastRegistry extends FailbackRegistry {
     private List<URL> toList(Set<URL> urls) {
         List<URL> list = new ArrayList<URL>();
         if (CollectionUtils.isNotEmpty(urls)) {
-            for (URL url : urls) {
-                list.add(url);
-            }
+            list.addAll(urls);
         }
         return list;
     }

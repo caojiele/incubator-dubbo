@@ -70,7 +70,7 @@ import static org.apache.dubbo.remoting.etcd.Constants.RETRY_PERIOD_KEY;
 import static org.apache.dubbo.remoting.etcd.jetcd.JEtcdClientWrapper.UTF_8;
 
 /**
- * etct3 client.
+ * etcd3 client.
  */
 public class JEtcdClient extends AbstractEtcdClient<JEtcdClient.EtcdWatcher> {
 
@@ -201,6 +201,11 @@ public class JEtcdClient extends AbstractEtcdClient<JEtcdClient.EtcdWatcher> {
     @Override
     public boolean put(String key, String value) {
         return clientWrapper.put(key, value);
+    }
+
+    @Override
+    public boolean putEphemeral(String key, String value) {
+        return clientWrapper.putEphemeral(key, value);
     }
 
     public ManagedChannel getChannel() {
@@ -447,8 +452,17 @@ public class JEtcdClient extends AbstractEtcdClient<JEtcdClient.EtcdWatcher> {
             if (this.watchRequest == null) {
                 return;
             }
-            this.watchRequest.onCompleted();
-            this.watchRequest = null;
+
+            try {
+                WatchCancelRequest watchCancelRequest =
+                        WatchCancelRequest.newBuilder().setWatchId(watchId).build();
+                WatchRequest cancelRequest = WatchRequest.newBuilder()
+                        .setCancelRequest(watchCancelRequest).build();
+                watchRequest.onNext(cancelRequest);
+            } finally {
+                this.watchRequest.onCompleted();
+                this.watchRequest = null;
+            }
         }
 
         @Override

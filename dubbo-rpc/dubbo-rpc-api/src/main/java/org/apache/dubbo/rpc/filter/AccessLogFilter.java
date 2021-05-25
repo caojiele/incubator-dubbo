@@ -26,7 +26,6 @@ import org.apache.dubbo.rpc.Filter;
 import org.apache.dubbo.rpc.Invocation;
 import org.apache.dubbo.rpc.Invoker;
 import org.apache.dubbo.rpc.Result;
-import org.apache.dubbo.rpc.RpcContext;
 import org.apache.dubbo.rpc.RpcException;
 import org.apache.dubbo.rpc.support.AccessLogData;
 
@@ -44,9 +43,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.dubbo.common.constants.CommonConstants.GROUP_KEY;
 import static org.apache.dubbo.common.constants.CommonConstants.PROVIDER;
-import static org.apache.dubbo.common.constants.CommonConstants.VERSION_KEY;
 import static org.apache.dubbo.rpc.Constants.ACCESS_LOG_KEY;
 
 /**
@@ -68,7 +65,7 @@ public class AccessLogFilter implements Filter {
 
     private static final Logger logger = LoggerFactory.getLogger(AccessLogFilter.class);
 
-    private static final String ACCESS_LOG_KEY = "dubbo.accesslog";
+    private static final String LOG_KEY = "dubbo.accesslog";
 
     private static final int LOG_MAX_BUFFER = 5000;
 
@@ -79,7 +76,7 @@ public class AccessLogFilter implements Filter {
     // It's safe to declare it as singleton since it runs on single thread only
     private static final DateFormat FILE_NAME_FORMATTER = new SimpleDateFormat(FILE_DATE_FORMAT);
 
-    private static final Map<String, Set<AccessLogData>> LOG_ENTRIES = new ConcurrentHashMap<String, Set<AccessLogData>>();
+    private static final Map<String, Set<AccessLogData>> LOG_ENTRIES = new ConcurrentHashMap<>();
 
     private static final ScheduledExecutorService LOG_SCHEDULED = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("Dubbo-Access-Log", true));
 
@@ -104,7 +101,8 @@ public class AccessLogFilter implements Filter {
         try {
             String accessLogKey = invoker.getUrl().getParameter(ACCESS_LOG_KEY);
             if (ConfigUtils.isNotEmpty(accessLogKey)) {
-                AccessLogData logData = buildAccessLogData(invoker, inv);
+                AccessLogData logData = AccessLogData.newLogData(); 
+                logData.buildAccessLogData(invoker, inv);
                 log(accessLogKey, logData);
             }
         } catch (Throwable t) {
@@ -119,32 +117,38 @@ public class AccessLogFilter implements Filter {
         if (logSet.size() < LOG_MAX_BUFFER) {
             logSet.add(accessLogData);
         } else {
-            //TODO we needs use force writing to file so that buffer gets clear and new log can be written.
-            logger.warn("AccessLog buffer is full skipping buffer ");
+            logger.warn("AccessLog buffer is full. Do a force writing to file to clear buffer.");
+            //just write current logSet to file.
+            writeLogSetToFile(accessLog, logSet);
+            //after force writing, add accessLogData to current logSet
+            logSet.add(accessLogData);
+        }
+    }
+
+    private void writeLogSetToFile(String accessLog, Set<AccessLogData> logSet) {
+        try {
+            if (ConfigUtils.isDefault(accessLog)) {
+                processWithServiceLogger(logSet);
+            } else {
+                File file = new File(accessLog);
+                createIfLogDirAbsent(file);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Append log to " + accessLog);
+                }
+                renameFile(file);
+                processWithAccessKeyLogger(logSet, file);
+            }
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
         }
     }
 
     private void writeLogToFile() {
         if (!LOG_ENTRIES.isEmpty()) {
             for (Map.Entry<String, Set<AccessLogData>> entry : LOG_ENTRIES.entrySet()) {
-                try {
-                    String accessLog = entry.getKey();
-                    Set<AccessLogData> logSet = entry.getValue();
-                    if (ConfigUtils.isDefault(accessLog)) {
-                        processWithServiceLogger(logSet);
-                    } else {
-                        File file = new File(accessLog);
-                        createIfLogDirAbsent(file);
-                        if (logger.isDebugEnabled()) {
-                            logger.debug("Append log to " + accessLog);
-                        }
-                        renameFile(file);
-                        processWithAccessKeyLogger(logSet, file);
-                    }
-
-                } catch (Exception e) {
-                    logger.error(e.getMessage(), e);
-                }
+                String accessLog = entry.getKey();
+                Set<AccessLogData> logSet = entry.getValue();
+                writeLogSetToFile(accessLog, logSet);
             }
         }
     }
@@ -155,23 +159,10 @@ public class AccessLogFilter implements Filter {
                  iterator.hasNext();
                  iterator.remove()) {
                 writer.write(iterator.next().getLogMessage());
-                writer.write("\r\n");
+                writer.write(System.getProperty("line.separator"));
             }
             writer.flush();
         }
-    }
-
-    private AccessLogData buildAccessLogData(Invoker<?> invoker, Invocation inv) {
-        RpcContext context = RpcContext.getContext();
-        AccessLogData logData = AccessLogData.newLogData();
-        logData.setServiceName(invoker.getInterface().getName());
-        logData.setMethodName(inv.getMethodName());
-        logData.setVersion(invoker.getUrl().getParameter(VERSION_KEY));
-        logData.setGroup(invoker.getUrl().getParameter(GROUP_KEY));
-        logData.setInvocationTime(new Date());
-        logData.setTypes(inv.getParameterTypes());
-        logData.setArguments(inv.getArguments());
-        return logData;
     }
 
     private void processWithServiceLogger(Set<AccessLogData> logSet) {
@@ -179,7 +170,7 @@ public class AccessLogFilter implements Filter {
              iterator.hasNext();
              iterator.remove()) {
             AccessLogData logData = iterator.next();
-            LoggerFactory.getLogger(ACCESS_LOG_KEY + "." + logData.getServiceName()).info(logData.getLogMessage());
+            LoggerFactory.getLogger(LOG_KEY + "." + logData.getServiceName()).info(logData.getLogMessage());
         }
     }
 
